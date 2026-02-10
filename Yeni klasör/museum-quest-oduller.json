@@ -68,47 +68,5 @@
     "latitude": 51.4966,
     "longitude": -0.1722,
     "isActive": true
-  },
-  {
-    "id": "reward-detling-01",
-    "title": "Ücretsiz Pint Bira",
-    "description": "The Cock Horse Inn'de bir adet yerel bira ikramı.",
-    "category": "drink",
-    "requiredPoints": 400,
-    "businessId": "biz-detling-01",
-    "businessName": "The Cock Horse Inn",
-    "businessLogo": "",
-    "photoURL": "",
-    "latitude": 51.3748,
-    "longitude": 0.5275,
-    "isActive": true
-  },
-  {
-    "id": "reward-detling-02",
-    "title": "Sıcak İçecek & Pasta",
-    "description": "Kent Showground Café'de bir sıcak içecek ve bir dilim pasta.",
-    "category": "food",
-    "requiredPoints": 600,
-    "businessId": "biz-detling-02",
-    "businessName": "Kent Showground Café",
-    "businessLogo": "",
-    "photoURL": "",
-    "latitude": 51.3770,
-    "longitude": 0.5310,
-    "isActive": true
-  },
-  {
-    "id": "reward-detling-03",
-    "title": "Hediyelik Kent Anahtarlık",
-    "description": "Detling Village Store'dan Kent sembolü beyaz at anahtarlık.",
-    "category": "shopping",
-    "requiredPoints": 300,
-    "businessId": "biz-detling-03",
-    "businessName": "Detling Village Store",
-    "businessLogo": "",
-    "photoURL": "",
-    "latitude": 51.3752,
-    "longitude": 0.5290,
-    "isActive": true
   }
 ]
