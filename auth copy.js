@@ -18,27 +18,33 @@ const erisebilenler = ["recepyeni@gmail.com", "reccirik@gmail.com"];
 function googleIleGiris() {
     console.log("[auth.js] Google ile giriş başlatılıyor...");
 
-    // Önce popup dene (hem masaüstü hem mobil)
-    auth.signInWithPopup(googleProvider)
-        .then(function(result) {
-            console.log("[auth.js] Popup giriş başarılı:", result.user.email);
-        })
-        .catch(function(error) {
-            console.error("[auth.js] Popup giriş hatası:", error.code);
+    // Mobil cihaz kontrolü — mobilde redirect, masaüstünde popup
+    const mobilMi = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
 
-            if (error.code === 'auth/popup-closed-by-user') {
-                bildirimGoster("Giriş penceresi kapatıldı", "uyari");
-            } else if (error.code === 'auth/cancelled-popup-request') {
-                console.warn("[auth.js] Duplicate popup isteği, yoksayıldı.");
-            } else if (error.code === 'auth/popup-blocked' ||
-                       error.code === 'auth/operation-not-supported-in-this-environment') {
-                // Popup engellenmiş veya desteklenmiyor — redirect'e düş
-                console.log("[auth.js] Popup engellendi, redirect deneniyor...");
-                auth.signInWithRedirect(googleProvider);
-            } else {
+    if (mobilMi) {
+        auth.signInWithRedirect(googleProvider)
+            .catch(function(error) {
+                console.error("[auth.js] Redirect giriş hatası:", error);
                 bildirimGoster("Giriş hatası: " + error.message, "hata");
-            }
-        });
+            });
+    } else {
+        auth.signInWithPopup(googleProvider)
+            .then(function(result) {
+                console.log("[auth.js] Popup giriş başarılı:", result.user.email);
+                // onAuthStateChanged tetiklenecek, orada işlem yapılacak
+            })
+            .catch(function(error) {
+                console.error("[auth.js] Popup giriş hatası:", error);
+                if (error.code === 'auth/popup-closed-by-user') {
+                    bildirimGoster("Giriş penceresi kapatıldı", "uyari");
+                } else if (error.code === 'auth/cancelled-popup-request') {
+                    // Birden fazla popup açılmaya çalışıldı, yoksay
+                    console.warn("[auth.js] Duplicate popup isteği, yoksayıldı.");
+                } else {
+                    bildirimGoster("Giriş hatası: " + error.message, "hata");
+                }
+            });
+    }
 }
 
 // ──────────────────────────────────────────────

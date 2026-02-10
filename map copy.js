@@ -53,7 +53,7 @@ function haritaHazir() {
         zoomControlOptions: {
             position: google.maps.ControlPosition.RIGHT_CENTER
         },
-        // styles: kaldırıldı — varsayılan açık tema kullanılıyor
+        styles: haritaKoyuTema()
     });
 
     // Directions servisleri
@@ -61,7 +61,7 @@ function haritaHazir() {
     directionsRenderer = new google.maps.DirectionsRenderer({
         suppressMarkers: true,
         polylineOptions: {
-            strokeColor: '#b8860b',
+            strokeColor: '#f0c040',
             strokeWeight: 4,
             strokeOpacity: 0.8
         }
@@ -229,9 +229,9 @@ function lokasyonlariHaritayaEkle() {
             icon: {
                 url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
                     '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="48" viewBox="0 0 40 48">' +
-                    '<path d="M20 0 C8.95 0 0 8.95 0 20 C0 34 20 48 20 48 S40 34 40 20 C40 8.95 31.05 0 20 0Z" fill="#d4a017"/>' +
-                    '<circle cx="20" cy="18" r="10" fill="#ffffff"/>' +
-                    '<text x="20" y="23" text-anchor="middle" font-size="14" fill="#d4a017">🏛</text>' +
+                    '<path d="M20 0 C8.95 0 0 8.95 0 20 C0 34 20 48 20 48 S40 34 40 20 C40 8.95 31.05 0 20 0Z" fill="#f0c040"/>' +
+                    '<circle cx="20" cy="18" r="10" fill="#0a0a18"/>' +
+                    '<text x="20" y="23" text-anchor="middle" font-size="14" fill="#f0c040">🏛</text>' +
                     '</svg>'
                 ),
                 scaledSize: new google.maps.Size(40, 48),
