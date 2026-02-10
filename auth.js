@@ -9,9 +9,6 @@
 let mevcutKullanici = null;      // Firebase user nesnesi
 let kullaniciBilgileri = null;   // DB'den gelen profil bilgileri
 
-// Erişim izni olan e-posta listesi
-const erisebilenler = ["recepyeni@gmail.com", "reccirik@gmail.com"];
-
 // ──────────────────────────────────────────────
 // GOOGLE İLE GİRİŞ
 // ──────────────────────────────────────────────
@@ -45,15 +42,8 @@ function googleIleGiris() {
 // ERİŞİM KONTROL
 // ──────────────────────────────────────────────
 function erisimKontrol(user) {
-    if (erisebilenler.includes(user.email)) {
-        console.log("[auth.js] Erişim onaylandı:", user.email);
-        return true;
-    } else {
-        console.warn("[auth.js] Erişim reddedildi:", user.email);
-        bildirimGoster("Bu uygulamaya erişim izniniz yok.", "hata");
-        auth.signOut();
-        return false;
-    }
+    console.log("[auth.js] Erişim onaylandı:", user.email);
+    return true;
 }
 
 // ──────────────────────────────────────────────
