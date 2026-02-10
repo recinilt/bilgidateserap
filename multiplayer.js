@@ -36,6 +36,21 @@ function birlikteOynaToggle() {
         return;
     }
 
+    // Lokasyona 1 km yakınlık kontrolü
+    if (!pairingOpenDurum) {
+        if (!mevcutKonum.lat || !mevcutKonum.lng) {
+            bildirimGoster("Konum henüz alınamadı. Lütfen bekle.", "uyari");
+            return;
+        }
+        if (mevcutMekanLat && mevcutMekanLng) {
+            var lokasyonMesafe = mesafeHesapla(mevcutKonum.lat, mevcutKonum.lng, mevcutMekanLat, mevcutMekanLng);
+            if (lokasyonMesafe > 1000) {
+                bildirimGoster("📍 Mekana " + formatMesafe(lokasyonMesafe) + " uzaktasın. 1 km içinde olmalısın.", "uyari");
+                return;
+            }
+        }
+    }
+
     pairingOpenDurum = !pairingOpenDurum;
 
     var btn = document.getElementById('eslestirme-toggle-btn');
@@ -144,14 +159,26 @@ function yakinOyunculariGoster(locationId) {
 
             // Mesafe hesapla
             var mesafe = '';
-            if (mevcutKonum.lat && mevcutKonum.lng && o.latitude && o.longitude) {
-                var m = mesafeHesapla(mevcutKonum.lat, mevcutKonum.lng, o.latitude, o.longitude);
-                mesafe = formatMesafe(m);
-            }
 
             var foto = o.photoURL || varsayilanFoto();
             var cinsiyet = o.gender === 'male' ? '♂️' : (o.gender === 'female' ? '♀️' : '');
             var yas = o.age ? o.age + ' yaş' : '';
+
+            // 1 km mesafe kontrolü
+            var davetAktif = true;
+            var mesafeMetin = '';
+            if (mevcutKonum.lat && mevcutKonum.lng && o.latitude && o.longitude) {
+                var m = mesafeHesapla(mevcutKonum.lat, mevcutKonum.lng, o.latitude, o.longitude);
+                mesafe = formatMesafe(m);
+                if (m > 1000) {
+                    davetAktif = false;
+                    mesafeMetin = '🔒 1 km\'den uzak';
+                }
+            }
+
+            var davetBtnHTML = davetAktif
+                ? '<button class="btn btn-gold btn-sm" onclick="davetGonder(\'' + uid + '\')">Davet</button>'
+                : '<button class="btn btn-outline btn-sm" disabled title="1 km içinde olmalısınız">🔒 Uzak</button>';
 
             html += '<div class="oyuncu-kart">' +
                 '<div class="oyuncu-kart-foto" onclick="lightboxAc(\'' + htmlEscape(foto) + '\')">' +
@@ -164,9 +191,9 @@ function yakinOyunculariGoster(locationId) {
                         (cinsiyet ? '<span>' + cinsiyet + '</span>' : '') +
                         '<span>⭐ Lv.' + (o.xpLevel || 1) + '</span>' +
                     '</div>' +
-                    (mesafe ? '<div class="oyuncu-mesafe">📍 ' + mesafe + '</div>' : '') +
+                    (mesafe ? '<div class="oyuncu-mesafe">📍 ' + mesafe + (mesafeMetin ? ' — ' + mesafeMetin : '') + '</div>' : '') +
                 '</div>' +
-                '<button class="btn btn-gold btn-sm" onclick="davetGonder(\'' + uid + '\')">Davet</button>' +
+                davetBtnHTML +
             '</div>';
         });
 
@@ -194,6 +221,29 @@ function davetGonder(hedefUid) {
         return;
     }
 
+    // Hedef oyuncunun konumunu kontrol et (1 km limiti)
+    var locationId = mevcutBirlikteLokayon || mevcutMekanId;
+    if (locationId && mevcutKonum.lat && mevcutKonum.lng) {
+        dbOku('active_players/' + locationId + '/' + hedefUid).then(function(hedefOyuncu) {
+            if (hedefOyuncu && hedefOyuncu.latitude && hedefOyuncu.longitude) {
+                var mesafe = mesafeHesapla(mevcutKonum.lat, mevcutKonum.lng, hedefOyuncu.latitude, hedefOyuncu.longitude);
+                if (mesafe > 1000) {
+                    bildirimGoster("📍 Bu oyuncu " + formatMesafe(mesafe) + " uzakta. 1 km içinde olmalısınız.", "uyari");
+                    return;
+                }
+            }
+            // Mesafe uygun — daveti gönder
+            davetOlusturVeGonder(hedefUid, locationId);
+        }).catch(function() {
+            // Konum okunamazsa yine de gönder
+            davetOlusturVeGonder(hedefUid, locationId);
+        });
+    } else {
+        davetOlusturVeGonder(hedefUid, locationId);
+    }
+}
+
+function davetOlusturVeGonder(hedefUid, locationId) {
     var davetVeri = {
         senderId: mevcutKullanici.uid,
         senderName: kullaniciBilgileri.displayName || '',
