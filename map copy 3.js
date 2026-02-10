@@ -208,9 +208,6 @@ function konumGuncelle(position) {
     if (typeof proximityOdulKontrol === 'function') {
         proximityOdulKontrol();
     }
-
-    // Yakın lokasyonlardaki oyuncuları haritada göster (15s throttle)
-    yakinLokasyonOyuncuTarama();
 }
 
 function konumHatasi(hata) {
@@ -470,9 +467,6 @@ function navigasyonDisAc(hedefLat, hedefLng) {
 // AKTİF OYUNCULARI HARİTADA GÖSTER
 // ──────────────────────────────────────────────
 var aktifOyuncuMarkerlar = {};
-var yakinOyuncuMarkerlar = {};             // uid → marker (haritadaki canlı oyuncular)
-var yakinLokasyonDinleyiciler = {};         // locationId → true (aktif dinleyiciler)
-var sonOyuncuTaramaZamani = 0;             // throttle için
 
 function aktifOyunculariGoster(locationId) {
     // Önceki marker'ları temizle
@@ -539,127 +533,6 @@ function birlikteOynaEkraninaGit(locationId) {
     if (typeof yakinOyunculariGoster === 'function') {
         yakinOyunculariGoster(locationId);
     }
-}
-
-// ──────────────────────────────────────────────
-// YAKIN LOKASYONLARDAKI OYUNCULARI HARİTADA GÖSTER
-// ──────────────────────────────────────────────
-function yakinLokasyonOyuncuTarama() {
-    // 15 saniye throttle
-    var simdi = Date.now();
-    if (simdi - sonOyuncuTaramaZamani < 15000) return;
-    sonOyuncuTaramaZamani = simdi;
-
-    if (!mevcutKonum.lat || !mevcutKonum.lng) return;
-    if (!window.oyunLokasyonlari) return;
-    if (!mevcutKullanici) return;
-
-    var yakinLokasyonlar = {};
-
-    for (var i = 0; i < window.oyunLokasyonlari.length; i++) {
-        var lok = window.oyunLokasyonlari[i];
-        if (!lok.isActive) continue;
-
-        var mesafe = mesafeHesapla(mevcutKonum.lat, mevcutKonum.lng, lok.latitude, lok.longitude);
-        if (mesafe <= 1000) {
-            yakinLokasyonlar[lok.id] = true;
-
-            // Bu lokasyonu henüz dinlemiyorsak başlat
-            if (!yakinLokasyonDinleyiciler[lok.id]) {
-                yakinLokasyonDinleyiciler[lok.id] = true;
-                lokasyonOyunculariniHaritadaDinle(lok.id);
-                console.log("[map.js] Yakın lokasyon oyuncu dinleme başlatıldı:", lok.id);
-            }
-        }
-    }
-
-    // 1km dışına çıkılan lokasyonları temizle
-    Object.keys(yakinLokasyonDinleyiciler).forEach(function(locId) {
-        if (!yakinLokasyonlar[locId]) {
-            aktifOyunculariDinlemeyiBirak(locId);
-            delete yakinLokasyonDinleyiciler[locId];
-
-            // Bu lokasyondaki marker'ları temizle
-            Object.keys(yakinOyuncuMarkerlar).forEach(function(key) {
-                if (key.indexOf(locId + '_') === 0) {
-                    yakinOyuncuMarkerlar[key].setMap(null);
-                    delete yakinOyuncuMarkerlar[key];
-                }
-            });
-            console.log("[map.js] Uzak lokasyon temizlendi:", locId);
-        }
-    });
-}
-
-function lokasyonOyunculariniHaritadaDinle(locationId) {
-    aktifOyunculariDinle(locationId, function(oyuncular) {
-        // Eski marker'ları temizle (bu lokasyona ait)
-        Object.keys(yakinOyuncuMarkerlar).forEach(function(key) {
-            if (key.indexOf(locationId + '_') === 0) {
-                yakinOyuncuMarkerlar[key].setMap(null);
-                delete yakinOyuncuMarkerlar[key];
-            }
-        });
-
-        if (!oyuncular || !harita) return;
-
-        Object.keys(oyuncular).forEach(function(uid) {
-            // Kendini gösterme
-            if (mevcutKullanici && uid === mevcutKullanici.uid) return;
-
-            var o = oyuncular[uid];
-            if (!o.pairingOpen) return;
-            if (!o.latitude || !o.longitude) return;
-
-            var markerKey = locationId + '_' + uid;
-            var basHarf = (o.displayName || 'O').charAt(0).toUpperCase();
-
-            var marker = new google.maps.Marker({
-                position: { lat: o.latitude, lng: o.longitude },
-                map: harita,
-                title: o.displayName || 'Oyuncu',
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 16,
-                    fillColor: '#10b981',
-                    fillOpacity: 1,
-                    strokeColor: '#ffffff',
-                    strokeWeight: 3
-                },
-                label: {
-                    text: basHarf,
-                    color: '#ffffff',
-                    fontWeight: 'bold',
-                    fontSize: '13px'
-                },
-                zIndex: 100
-            });
-
-            // Tıklayınca oyuncu detay popup
-            (function(oyuncuUid, oyuncuVeri, locId) {
-                marker.addListener('click', function() {
-                    if (typeof oyuncuDetayPopup === 'function') {
-                        oyuncuDetayPopup(oyuncuUid, oyuncuVeri, locId);
-                    }
-                });
-            })(uid, o, locationId);
-
-            yakinOyuncuMarkerlar[markerKey] = marker;
-        });
-    });
-}
-
-// Tüm yakın oyuncu marker ve dinleyicilerini temizle
-function yakinOyuncuSisteminiTemizle() {
-    Object.keys(yakinOyuncuMarkerlar).forEach(function(key) {
-        yakinOyuncuMarkerlar[key].setMap(null);
-    });
-    yakinOyuncuMarkerlar = {};
-
-    Object.keys(yakinLokasyonDinleyiciler).forEach(function(locId) {
-        aktifOyunculariDinlemeyiBirak(locId);
-    });
-    yakinLokasyonDinleyiciler = {};
 }
 
 console.log("[map.js] Map modülü yüklendi.");

@@ -241,11 +241,6 @@ async function puanEkle(uid, eklenecekPuan) {
         // Harita puanını güncelle
         haritaPuanGuncelle();
 
-        // Puan eşiği ödül bildirimi (rewards.js)
-        if (typeof puanEsigiOdulKontrol === 'function') {
-            puanEsigiOdulKontrol(mevcutPuan || 0, yeniPuan);
-        }
-
         console.log("[database.js] Puan güncellendi:", yeniPuan);
         return yeniPuan;
     } catch (error) {

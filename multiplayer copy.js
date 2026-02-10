@@ -36,6 +36,21 @@ function birlikteOynaToggle() {
         return;
     }
 
+    // Lokasyona 1 km yakınlık kontrolü
+    if (!pairingOpenDurum) {
+        if (!mevcutKonum.lat || !mevcutKonum.lng) {
+            bildirimGoster("Konum henüz alınamadı. Lütfen bekle.", "uyari");
+            return;
+        }
+        if (mevcutMekanLat && mevcutMekanLng) {
+            var lokasyonMesafe = mesafeHesapla(mevcutKonum.lat, mevcutKonum.lng, mevcutMekanLat, mevcutMekanLng);
+            if (lokasyonMesafe > 1000) {
+                bildirimGoster("📍 Mekana " + formatMesafe(lokasyonMesafe) + " uzaktasın. 1 km içinde olmalısın.", "uyari");
+                return;
+            }
+        }
+    }
+
     pairingOpenDurum = !pairingOpenDurum;
 
     var btn = document.getElementById('eslestirme-toggle-btn');
@@ -144,14 +159,26 @@ function yakinOyunculariGoster(locationId) {
 
             // Mesafe hesapla
             var mesafe = '';
-            if (mevcutKonum.lat && mevcutKonum.lng && o.latitude && o.longitude) {
-                var m = mesafeHesapla(mevcutKonum.lat, mevcutKonum.lng, o.latitude, o.longitude);
-                mesafe = formatMesafe(m);
-            }
 
             var foto = o.photoURL || varsayilanFoto();
             var cinsiyet = o.gender === 'male' ? '♂️' : (o.gender === 'female' ? '♀️' : '');
             var yas = o.age ? o.age + ' yaş' : '';
+
+            // 1 km mesafe kontrolü
+            var davetAktif = true;
+            var mesafeMetin = '';
+            if (mevcutKonum.lat && mevcutKonum.lng && o.latitude && o.longitude) {
+                var m = mesafeHesapla(mevcutKonum.lat, mevcutKonum.lng, o.latitude, o.longitude);
+                mesafe = formatMesafe(m);
+                if (m > 1000) {
+                    davetAktif = false;
+                    mesafeMetin = '🔒 1 km\'den uzak';
+                }
+            }
+
+            var davetBtnHTML = davetAktif
+                ? '<button class="btn btn-gold btn-sm" onclick="davetGonder(\'' + uid + '\')">Davet</button>'
+                : '<button class="btn btn-outline btn-sm" disabled title="1 km içinde olmalısınız">🔒 Uzak</button>';
 
             html += '<div class="oyuncu-kart">' +
                 '<div class="oyuncu-kart-foto" onclick="lightboxAc(\'' + htmlEscape(foto) + '\')">' +
@@ -164,9 +191,9 @@ function yakinOyunculariGoster(locationId) {
                         (cinsiyet ? '<span>' + cinsiyet + '</span>' : '') +
                         '<span>⭐ Lv.' + (o.xpLevel || 1) + '</span>' +
                     '</div>' +
-                    (mesafe ? '<div class="oyuncu-mesafe">📍 ' + mesafe + '</div>' : '') +
+                    (mesafe ? '<div class="oyuncu-mesafe">📍 ' + mesafe + (mesafeMetin ? ' — ' + mesafeMetin : '') + '</div>' : '') +
                 '</div>' +
-                '<button class="btn btn-gold btn-sm" onclick="davetGonder(\'' + uid + '\',\'' + locationId + '\')">Davet</button>' +
+                davetBtnHTML +
             '</div>';
         });
 
@@ -181,7 +208,7 @@ function yakinOyunculariGoster(locationId) {
 // ──────────────────────────────────────────────
 // ADIM 3 — DAVET GÖNDER & YANIT
 // ──────────────────────────────────────────────
-function davetGonder(hedefUid, lokasyonId) {
+function davetGonder(hedefUid) {
     console.log("[multiplayer.js] Davet gönderiliyor:", hedefUid);
 
     if (!mevcutKullanici || !kullaniciBilgileri) {
@@ -194,19 +221,40 @@ function davetGonder(hedefUid, lokasyonId) {
         return;
     }
 
+    // Hedef oyuncunun konumunu kontrol et (1 km limiti)
+    var locationId = mevcutBirlikteLokayon || mevcutMekanId;
+    if (locationId && mevcutKonum.lat && mevcutKonum.lng) {
+        dbOku('active_players/' + locationId + '/' + hedefUid).then(function(hedefOyuncu) {
+            if (hedefOyuncu && hedefOyuncu.latitude && hedefOyuncu.longitude) {
+                var mesafe = mesafeHesapla(mevcutKonum.lat, mevcutKonum.lng, hedefOyuncu.latitude, hedefOyuncu.longitude);
+                if (mesafe > 1000) {
+                    bildirimGoster("📍 Bu oyuncu " + formatMesafe(mesafe) + " uzakta. 1 km içinde olmalısınız.", "uyari");
+                    return;
+                }
+            }
+            // Mesafe uygun — daveti gönder
+            davetOlusturVeGonder(hedefUid, locationId);
+        }).catch(function() {
+            // Konum okunamazsa yine de gönder
+            davetOlusturVeGonder(hedefUid, locationId);
+        });
+    } else {
+        davetOlusturVeGonder(hedefUid, locationId);
+    }
+}
+
+function davetOlusturVeGonder(hedefUid, locationId) {
     var davetVeri = {
         senderId: mevcutKullanici.uid,
         senderName: kullaniciBilgileri.displayName || '',
         senderPhoto: kullaniciBilgileri.photoURL || '',
         receiverId: hedefUid,
-        locationId: lokasyonId || mevcutBirlikteLokayon || mevcutMekanId,
+        locationId: mevcutBirlikteLokayon || mevcutMekanId,
         status: 'pending',
         hostUserId: null,
         rpsResult: null,
         senderReady: false,
         receiverReady: false,
-        senderNavOpen: false,
-        receiverNavOpen: false,
         createdAt: Date.now(),
         respondedAt: null
     };
@@ -344,7 +392,6 @@ function eslesmeKabulEdildi(requestKey, data) {
 
     mevcutEslesmeKey = requestKey;
     mevcutEslesme = data;
-    mevcutBirlikteLokayon = data.locationId || mevcutBirlikteLokayon || mevcutMekanId;
 
     // Partner bilgilerini belirle
     var benSenderMiyim = (mevcutKullanici.uid === data.senderId);
@@ -379,21 +426,9 @@ function sohbetBaslat(pairId) {
     var mesajlarEl = document.getElementById('sohbet-mesajlar');
     if (mesajlarEl) mesajlarEl.innerHTML = '';
 
-    // Buluşma barını göster ve navigasyon butonu ekle
+    // Buluşma barını göster
     var bulusmaBar = document.getElementById('sohbet-bulusma-bar');
-    if (bulusmaBar) {
-        bulusmaBar.classList.remove('gizli');
-        // Navigasyon butonu yoksa ekle
-        if (!document.getElementById('karsilikli-nav-btn')) {
-            var navBtnHTML = '<div id="karsilikli-nav-wrapper" style="margin-top:8px;">' +
-                '<button id="karsilikli-nav-btn" class="btn btn-blue btn-sm btn-block" onclick="karsilikliNavigasyonTeklifGonder()">' +
-                    '🧭 Navigasyonu Aç' +
-                '</button>' +
-                '<div id="karsilikli-nav-durum" style="font-size:0.8rem;color:var(--text-dim);margin-top:4px;"></div>' +
-            '</div>';
-            bulusmaBar.insertAdjacentHTML('beforeend', navBtnHTML);
-        }
-    }
+    if (bulusmaBar) bulusmaBar.classList.remove('gizli');
 
     // Ekranı göster
     ekranGoster('ekran-sohbet');
@@ -454,11 +489,6 @@ function sohbettenCik() {
     }
     mesafeKontrolDurdur();
     partnerKonumDinlemeyiBirak();
-    navDinleyiciAktif = false;
-
-    // Nav butonunu temizle
-    var navWrapper = document.getElementById('karsilikli-nav-wrapper');
-    if (navWrapper) navWrapper.remove();
 
     // Haritaya dön
     ekranGoster('ekran-harita');
@@ -814,148 +844,6 @@ function birlikteQuizMesafeKontrol() {
 }
 
 // ──────────────────────────────────────────────
-// OYUNCU DETAY POPUP (Haritadan tıklayınca)
-// ──────────────────────────────────────────────
-function oyuncuDetayPopup(uid, oyuncuVeri, locationId) {
-    console.log("[multiplayer.js] Oyuncu detay popup:", oyuncuVeri.displayName, "loc:", locationId);
-
-    var foto = oyuncuVeri.photoURL || varsayilanFoto();
-    var cinsiyet = oyuncuVeri.gender === 'male' ? '♂️' : (oyuncuVeri.gender === 'female' ? '♀️' : '');
-    var yas = oyuncuVeri.age ? oyuncuVeri.age + ' yaş' : '';
-    var seviye = 'Lv.' + (oyuncuVeri.xpLevel || 1);
-
-    var mesafeMetin = '';
-    if (mevcutKonum.lat && mevcutKonum.lng && oyuncuVeri.latitude && oyuncuVeri.longitude) {
-        var m = mesafeHesapla(mevcutKonum.lat, mevcutKonum.lng, oyuncuVeri.latitude, oyuncuVeri.longitude);
-        mesafeMetin = formatMesafe(m);
-    }
-
-    var detaylar = [];
-    if (yas) detaylar.push(yas);
-    if (cinsiyet) detaylar.push(cinsiyet);
-    detaylar.push('⭐ ' + seviye);
-
-    var html = '<div style="text-align:center;">' +
-        '<img class="avatar-xl" src="' + htmlEscape(foto) + '" ' +
-            'onerror="this.src=varsayilanFoto()" ' +
-            'style="margin:0 auto 12px;cursor:pointer;" ' +
-            'onclick="modalKapat();lightboxAc(\'' + htmlEscape(foto) + '\')">' +
-        '<div style="font-size:1.25rem;font-weight:700;margin-bottom:4px;">' + htmlEscape(oyuncuVeri.displayName || 'Oyuncu') + '</div>' +
-        '<div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:8px;">' + detaylar.join(' · ') + '</div>' +
-        (mesafeMetin ? '<div style="margin-bottom:12px;"><span class="badge badge-gold">📍 ' + mesafeMetin + '</span></div>' : '') +
-        '<div style="display:flex;gap:12px;margin-top:16px;">' +
-            '<button class="btn btn-outline" style="flex:1;" onclick="modalKapat()">Kapat</button>' +
-            '<button class="btn btn-gold" style="flex:1;" onclick="modalKapat();davetGonderVeKayit(\'' + uid + '\',\'' + (locationId || '') + '\')">🤝 Davet Et</button>' +
-        '</div>' +
-    '</div>';
-
-    modalGoster(html);
-}
-
-// Davet gönder ve lokasyon ID'yi kaydet (popup'tan çağrılır)
-function davetGonderVeKayit(uid, locationId) {
-    // Birlikte oyna toggle'ı açık değilse aç
-    if (!pairingOpenDurum && mevcutMekanId) {
-        // Mekan ID'yi ayarla
-        if (locationId) {
-            mevcutBirlikteLokayon = locationId;
-            // Eğer mevcutMekanId farklıysa güncelle
-            if (!mevcutMekanId) mevcutMekanId = locationId;
-        }
-        birlikteOynaToggle();
-    }
-
-    if (locationId) {
-        mevcutBirlikteLokayon = locationId;
-    }
-
-    davetGonder(uid, locationId);
-}
-
-// ──────────────────────────────────────────────
-// KARŞILIKLI NAVİGASYON
-// ──────────────────────────────────────────────
-var navDinleyiciAktif = false;
-
-function karsilikliNavigasyonTeklifGonder() {
-    console.log("[multiplayer.js] Navigasyon teklifi gönderiliyor...");
-
-    if (!mevcutEslesmeKey || !mevcutKullanici || !mevcutEslesme) {
-        bildirimGoster("Eşleşme bulunamadı.", "uyari");
-        return;
-    }
-
-    var benSenderMiyim = (mevcutKullanici.uid === mevcutEslesme.senderId);
-    var guncelAlan = benSenderMiyim ? 'senderNavOpen' : 'receiverNavOpen';
-
-    var update = {};
-    update[guncelAlan] = true;
-    eslesmeGuncelle(mevcutEslesmeKey, update);
-
-    // Butonu güncelle
-    var btn = document.getElementById('karsilikli-nav-btn');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '✅ Navigasyon isteğin gönderildi';
-    }
-
-    var durumEl = document.getElementById('karsilikli-nav-durum');
-    if (durumEl) durumEl.textContent = '⏳ Partnerin de "Navigasyonu Aç" demesi bekleniyor...';
-
-    bildirimGoster("Navigasyon isteğin gönderildi! Partner bekleniyor... 🧭", "bilgi");
-
-    // Eşleşmeyi dinle — iki taraf da navOpen olunca karşılıklı navigasyon başlat
-    if (!navDinleyiciAktif) {
-        navDinleyiciAktif = true;
-        eslesmeDinle(mevcutEslesmeKey, function(data) {
-            if (!data) return;
-            mevcutEslesme = data;
-
-            if (data.senderNavOpen && data.receiverNavOpen) {
-                eslesmeDinlemeyiBirak(mevcutEslesmeKey);
-                navDinleyiciAktif = false;
-                karsilikliNavigasyonBaslat();
-            }
-        });
-    }
-}
-
-function karsilikliNavigasyonBaslat() {
-    console.log("[multiplayer.js] Karşılıklı navigasyon başlatılıyor!");
-
-    bildirimGoster("🧭 Her ikiniz de navigasyonu kabul etti! Yol tarifi açılıyor...", "basari");
-
-    // Durumu güncelle
-    var durumEl = document.getElementById('karsilikli-nav-durum');
-    if (durumEl) durumEl.textContent = '🧭 Navigasyon aktif!';
-
-    var btn = document.getElementById('karsilikli-nav-btn');
-    if (btn) {
-        btn.innerHTML = '🧭 Navigasyon Aktif';
-        btn.disabled = true;
-        btn.classList.remove('btn-blue');
-        btn.classList.add('btn-green');
-    }
-
-    // Partner konumuna navigasyon başlat
-    if (partnerKonum.lat && partnerKonum.lng) {
-        navigasyonBaslat(partnerKonum.lat, partnerKonum.lng);
-    } else {
-        bildirimGoster("Partner konumu bekleniyor...", "bilgi");
-        // Konum gelince tekrar dene
-        var navBekleInterval = setInterval(function() {
-            if (partnerKonum.lat && partnerKonum.lng) {
-                clearInterval(navBekleInterval);
-                navigasyonBaslat(partnerKonum.lat, partnerKonum.lng);
-            }
-        }, 2000);
-
-        // 30 saniye sonra vazgeç
-        setTimeout(function() { clearInterval(navBekleInterval); }, 30000);
-    }
-}
-
-// ──────────────────────────────────────────────
 // TEMİZLİK
 // ──────────────────────────────────────────────
 function multiplayerTemizle() {
@@ -982,7 +870,6 @@ function multiplayerTemizle() {
     partnerKonum = { lat: null, lng: null };
     bekleyenDavetKey = null;
     birlikteMesafeKayip = false;
-    navDinleyiciAktif = false;
 
     console.log("[multiplayer.js] Multiplayer temizlendi.");
 }
