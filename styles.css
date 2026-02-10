@@ -353,13 +353,17 @@
         /* ========== EKRAN: HARİTA ========== */
         #ekran-harita {
             padding: 0;
+            padding-bottom: 0;
             position: relative;
+            min-height: calc(100vh - var(--menu-height));
+            min-height: calc(100dvh - var(--menu-height));
         }
 
         #harita-container {
             width: 100%;
             height: calc(100vh - var(--menu-height));
             height: calc(100dvh - var(--menu-height));
+            min-height: 300px;
         }
 
         .harita-ust-bar {
@@ -1725,4 +1729,3 @@
                 border-radius: var(--radius) var(--radius) 0 0;
             }
         }
-    

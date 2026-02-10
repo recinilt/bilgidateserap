@@ -42,21 +42,10 @@ function haritaHazir() {
         return;
     }
 
-    // Harita container gizliyse geçici olarak görünür yap (boyut hesaplaması için)
-    var ekranHarita = document.getElementById('ekran-harita');
-    var geciciGorunur = false;
-    if (ekranHarita && ekranHarita.classList.contains('gizli')) {
-        geciciGorunur = true;
-        ekranHarita.style.position = 'absolute';
-        ekranHarita.style.left = '-9999px';
-        ekranHarita.style.display = 'block';
-        ekranHarita.classList.remove('gizli');
-    }
-
-    // Londra merkezli başlat
+    // İstanbul merkezli başlat
     harita = new google.maps.Map(haritaContainer, {
-        center: { lat: 51.509, lng: -0.126 },
-        zoom: 13,
+        center: { lat: 41.0082, lng: 28.9784 },
+        zoom: 14,
         mapTypeControl: false,
         streetViewControl: false,
         fullscreenControl: false,
@@ -64,16 +53,8 @@ function haritaHazir() {
         zoomControlOptions: {
             position: google.maps.ControlPosition.RIGHT_CENTER
         },
-        gestureHandling: 'greedy'
+        // styles: kaldırıldı — varsayılan açık tema kullanılıyor
     });
-
-    // Geçici görünürlüğü geri al
-    if (geciciGorunur && ekranHarita) {
-        ekranHarita.classList.add('gizli');
-        ekranHarita.style.position = '';
-        ekranHarita.style.left = '';
-        ekranHarita.style.display = '';
-    }
 
     // Directions servisleri
     directionsService = new google.maps.DirectionsService();

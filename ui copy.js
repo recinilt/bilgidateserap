@@ -54,20 +54,11 @@ function ekranGoster(ekranId) {
 function ekranTetikle(ekranId) {
     switch (ekranId) {
         case 'ekran-harita':
-            // Harita varsa yeniden boyutlandır (gizli div'den çıkış sonrası zorunlu)
+            // Harita varsa yeniden boyutlandır
             if (typeof harita !== 'undefined' && harita) {
-                // Birden fazla zamanlama ile resize tetikle (mobil uyum)
-                [50, 200, 500, 1000].forEach(function(ms) {
-                    setTimeout(function() {
-                        if (harita) {
-                            google.maps.event.trigger(harita, 'resize');
-                            // Konumum varsa oraya merkezle, yoksa harita merkezini koru
-                            if (mevcutKonum && mevcutKonum.lat) {
-                                harita.setCenter({ lat: mevcutKonum.lat, lng: mevcutKonum.lng });
-                            }
-                        }
-                    }, ms);
-                });
+                setTimeout(function() {
+                    google.maps.event.trigger(harita, 'resize');
+                }, 100);
             }
             haritaPuanGuncelle();
             break;
